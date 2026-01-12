@@ -27,7 +27,7 @@ const defaultAuthState: AuthContextType = {
   signInWithOAuth: async () => { throw createNoSupabaseError(); },
   signInWithEmail: async () => { throw createNoSupabaseError(); },
   signUpWithEmail: async () => { throw createNoSupabaseError(); },
-  signOut: async () => { throw createNoSupabaseError(); },
+  signOut: async () => {},
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,13 +41,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let mounted = true;
+    const sb = supabase!;
+
     const getSession = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase!.auth.getSession();
+        const { data: { session: initialSession } } = await sb.auth.getSession();
+        if (!mounted) return;
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
 
-        const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+          if (!mounted) return;
           setSession(session);
           setUser(session?.user ?? null);
         });
@@ -56,13 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           subscription?.unsubscribe();
         };
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        if (mounted) {
+          console.error('Auth initialization error:', error);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     getSession();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const signInWithOAuth = async (provider: 'github' | 'google') => {

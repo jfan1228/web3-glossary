@@ -7,18 +7,22 @@ import { LogIn, LogOut, Github, Mail, X } from 'lucide-react';
 export default function AuthButton() {
   const { user, loading, signInWithOAuth, signOut } = useAuth();
   const [showLoginOptions, setShowLoginOptions] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
 
   const handleSignIn = async (provider: 'github' | 'google') => {
+    setIsLoginLoading(true);
     try {
       await signInWithOAuth(provider);
     } catch (error: unknown) {
       const err = error as Error;
-      if (err.message && err.message.includes('not configured')) {
+      if (err.message && (err.message.includes('Supabase') || err.message.includes('配置'))) {
         alert('认证功能需要配置 Supabase 环境变量。\n\n当前使用演示模式，所有功能都可以正常使用。');
       } else {
         alert('登录失败，请稍后重试。');
         console.error('登录错误:', error);
       }
+    } finally {
+      setIsLoginLoading(false);
     }
   };
 
@@ -43,14 +47,15 @@ export default function AuthButton() {
     return (
       <div className="relative">
         <button
-          onClick={() => setShowLoginOptions(!showLoginOptions)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+          onClick={() => !isLoginLoading && setShowLoginOptions(!showLoginOptions)}
+          disabled={isLoginLoading}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <LogIn className="w-4 h-4" />
-          登录
+          {isLoginLoading ? '处理中...' : '登录'}
         </button>
 
-        {showLoginOptions && (
+        {showLoginOptions && !isLoginLoading && (
           <>
             <div
               className="fixed inset-0 z-40"
